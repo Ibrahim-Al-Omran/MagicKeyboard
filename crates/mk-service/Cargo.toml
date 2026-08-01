@@ -1,0 +1,21 @@
+[package]
+name = "mk-service"
+description = "Background-service orchestration shell for MagicKeyboard"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+mk-core = { path = "../mk-core" }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+[lib]
+name = "mk_service"
+path = "src/lib.rs"
+
+[[bin]]
+name = "mk-service"
+path = "src/main.rs"

@@ -1,0 +1,33 @@
+<Project Sdk="WixToolset.Sdk/4.0.6">
+  <PropertyGroup>
+    <OutputName>MagicKeyboard.Utility</OutputName>
+    <OutputType>Package</OutputType>
+    <Platform>x64</Platform>
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <StagedPayload>$([System.IO.Path]::GetFullPath('$(IntermediateOutputPath)staged'))</StagedPayload>
+    <GeneratedReleaseInclude>$([System.IO.Path]::GetFullPath('$(IntermediateOutputPath)GeneratedRelease.wxi'))</GeneratedReleaseInclude>
+    <DefineConstants>StagedPayload=$(StagedPayload);GeneratedReleaseInclude=$(GeneratedReleaseInclude);$(DefineConstants)</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Product.wxs" />
+    <PackageReference Include="WixToolset.Util.wixext" Version="4.0.6" />
+  </ItemGroup>
+
+  <Target
+      Name="FailClosedReleasePreflight"
+      BeforeTargets="CoreCompile"
+      Condition="'$(DesignTimeBuild)' != 'true'">
+    <Error
+        Condition="'$(PayloadRoot)' == ''"
+        Text="PayloadRoot is required; repository build outputs are not release payloads." />
+    <Error
+        Condition="'$(ReleaseManifest)' == ''"
+        Text="ReleaseManifest is required and must be Authenticode-signed." />
+    <Error
+        Condition="'$(TrustPolicy)' == ''"
+        Text="TrustPolicy is required and must pin approved certificate SHA-256 values." />
+    <Exec
+        Command="&quot;$(SystemRoot)\System32\WindowsPowerShell\v1.0\powershell.exe&quot; -NoProfile -NonInteractive -File &quot;$(MSBuildProjectDirectory)\..\scripts\Prepare-WixPayload.ps1&quot; -PayloadRoot &quot;$(PayloadRoot)&quot; -ManifestPath &quot;$(ReleaseManifest)&quot; -TrustPolicyPath &quot;$(TrustPolicy)&quot; -OutputRoot &quot;$(StagedPayload)&quot; -GeneratedIncludePath &quot;$(GeneratedReleaseInclude)&quot;" />
+  </Target>
+</Project>

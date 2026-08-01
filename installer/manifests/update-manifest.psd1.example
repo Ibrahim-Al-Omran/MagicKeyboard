@@ -1,0 +1,17 @@
+@{
+    # Deliberately invalid offline-update example. The completed file itself
+    # must have a valid, timestamped Authenticode signature.
+    SchemaVersion = 1
+    ProductId = 'MagicKeyboard.Utility'
+    UpgradeCode = '{50CB8A9D-BB93-4C83-8FB1-D825C6883C1C}'
+
+    Version = '0.1.0'
+    ReleaseSequence = 0
+    MinimumInstalledVersion = '0.1.0'
+
+    Bundle = @{
+        Path = 'MagicKeyboard.Utility-0.1.0-x64.exe'
+        Sha256 = 'REQUIRED_EXACT_SHA256'
+        Signature = 'Authenticode'
+    }
+}

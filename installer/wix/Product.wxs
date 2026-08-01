@@ -1,0 +1,288 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+  <?include $(var.GeneratedReleaseInclude)?>
+
+  <Package
+      Name="Magic Keyboard Utility"
+      Manufacturer="MagicKeyboard project"
+      Version="$(var.ReleaseVersion)"
+      UpgradeCode="{50CB8A9D-BB93-4C83-8FB1-D825C6883C1C}"
+      Language="1033"
+      InstallerVersion="500"
+      Scope="perMachine"
+      Platform="x64"
+      Compressed="yes">
+
+    <SummaryInformation
+        Description="Device-specific keyboard utility"
+        Manufacturer="MagicKeyboard project" />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+
+    <MajorUpgrade
+        AllowDowngrades="no"
+        AllowSameVersionUpgrades="no"
+        Schedule="afterInstallInitialize"
+        DowngradeErrorMessage="A newer release is installed. Downgrade is blocked." />
+
+    <Property Id="WINDOWS_BUILD" Secure="yes">
+      <RegistrySearch
+          Id="WindowsBuildSearch"
+          Root="HKLM"
+          Key="SOFTWARE\Microsoft\Windows NT\CurrentVersion"
+          Name="CurrentBuildNumber"
+          Type="integer"
+          Bitness="always64" />
+    </Property>
+    <Property Id="NATIVE_ARCHITECTURE" Secure="yes">
+      <RegistrySearch
+          Id="NativeArchitectureSearch"
+          Root="HKLM"
+          Key="SYSTEM\CurrentControlSet\Control\Session Manager\Environment"
+          Name="PROCESSOR_ARCHITECTURE"
+          Type="raw"
+          Bitness="always64" />
+    </Property>
+
+    <Launch
+        Condition="Installed OR (VersionNT64 AND NATIVE_ARCHITECTURE~=&quot;AMD64&quot; AND WINDOWS_BUILD &gt;= 22621)"
+        Message="This release requires Windows 11 x64 build 22621 or newer." />
+    <Launch
+        Condition="Privileged"
+        Message="A per-machine administrative installation is required." />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="Magic Keyboard Utility">
+        <Directory Id="SERVICEFOLDER" Name="Service" />
+        <Directory Id="UIFOLDER" Name="UI" />
+        <Directory Id="DRIVERFOLDER" Name="Driver" />
+        <Directory Id="INSTALLERFOLDER" Name="Installer" />
+        <Directory Id="EVIDENCEFOLDER" Name="Evidence" />
+      </Directory>
+    </StandardDirectory>
+
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="ApplicationProgramsFolder" Name="Magic Keyboard Utility" />
+    </StandardDirectory>
+
+    <Feature Id="MainFeature" Title="Magic Keyboard Utility" Level="1">
+      <ComponentGroupRef Id="ProductComponents" />
+    </Feature>
+
+    <ComponentGroup Id="ProductComponents">
+      <Component Id="ServiceComponent" Directory="SERVICEFOLDER" Guid="*">
+        <File
+            Id="ServiceExe"
+            Source="$(var.StagedPayload)\Service\MagicKeyboard.Service.exe"
+            KeyPath="yes" />
+        <ServiceInstall
+            Id="InstallMagicKeyboardService"
+            Name="MagicKeyboardService"
+            DisplayName="Magic Keyboard Service"
+            Description="Applies validated mappings for explicitly supported devices."
+            Type="ownProcess"
+            Start="auto"
+            ErrorControl="normal"
+            Account="LocalSystem"
+            Interactive="no"
+            Vital="yes">
+          <util:ServiceConfig
+              FirstFailureActionType="restart"
+              SecondFailureActionType="restart"
+              ThirdFailureActionType="none"
+              ResetPeriodInDays="1"
+              RestartServiceDelayInSeconds="30" />
+        </ServiceInstall>
+        <ServiceControl
+            Id="ControlMagicKeyboardService"
+            Name="MagicKeyboardService"
+            Start="install"
+            Stop="both"
+            Remove="uninstall"
+            Wait="yes" />
+      </Component>
+
+      <Component Id="UiComponent" Directory="UIFOLDER" Guid="*">
+        <File
+            Id="UiExe"
+            Source="$(var.StagedPayload)\UI\MagicKeyboard.Settings.exe"
+            KeyPath="yes">
+          <Shortcut
+              Id="UiShortcut"
+              Directory="ApplicationProgramsFolder"
+              Name="Magic Keyboard Settings"
+              Description="Open settings on demand"
+              WorkingDirectory="UIFOLDER"
+              Advertise="no" />
+        </File>
+        <RemoveFolder
+            Id="RemoveApplicationProgramsFolder"
+            Directory="ApplicationProgramsFolder"
+            On="uninstall" />
+      </Component>
+
+      <Component Id="DriverComponent" Directory="DRIVERFOLDER" Guid="*">
+        <File
+            Id="DriverInf"
+            Source="$(var.StagedPayload)\Driver\MagicKeyboardFilter.inf"
+            KeyPath="yes" />
+        <File
+            Id="DriverCatalog"
+            Source="$(var.StagedPayload)\Driver\MagicKeyboardFilter.cat" />
+        <File
+            Id="DriverSys"
+            Source="$(var.StagedPayload)\Driver\MagicKeyboardFilter.sys" />
+      </Component>
+
+      <Component Id="InstallerComponent" Directory="INSTALLERFOLDER" Guid="*">
+        <File
+            Id="InstallerActionsDll"
+            Source="$(var.StagedPayload)\Installer\InstallerActions.dll"
+            KeyPath="yes" />
+        <File
+            Id="ReleaseManifestFile"
+            Name="ReleaseManifest.psd1"
+            Source="$(var.StagedPayload)\Installer\ReleaseManifest.psd1" />
+        <File
+            Id="TrustPolicyFile"
+            Name="TrustPolicy.psd1"
+            Source="$(var.StagedPayload)\Installer\TrustPolicy.psd1" />
+      </Component>
+
+      <Component Id="EvidenceComponent" Directory="EVIDENCEFOLDER" Guid="*">
+        <File
+            Id="BindingEvidenceFile"
+            Source="$(var.StagedPayload)\Evidence\device-binding-review.json"
+            KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <!--
+      This signed native DLL is mandatory. Its full security/transaction
+      requirements are in InstallerActions-CONTRACT.md.
+    -->
+    <CustomAction
+        Id="ValidateInstalledPayload"
+        FileRef="InstallerActionsDll"
+        DllEntry="ValidatePayload"
+        Execute="deferred"
+        Impersonate="no"
+        Return="check" />
+    <CustomAction
+        Id="RollbackDriverPackage"
+        FileRef="InstallerActionsDll"
+        DllEntry="RollbackDriverPackage"
+        Execute="rollback"
+        Impersonate="no"
+        Return="check" />
+    <CustomAction
+        Id="StageDriverPackage"
+        FileRef="InstallerActionsDll"
+        DllEntry="StageDriverPackage"
+        Execute="deferred"
+        Impersonate="no"
+        Return="check" />
+    <CustomAction
+        Id="CommitDriverPackage"
+        FileRef="InstallerActionsDll"
+        DllEntry="CommitDriverPackage"
+        Execute="commit"
+        Impersonate="no"
+        Return="check" />
+    <CustomAction
+        Id="RollbackDriverRemoval"
+        FileRef="InstallerActionsDll"
+        DllEntry="RollbackDriverRemoval"
+        Execute="rollback"
+        Impersonate="no"
+        Return="check" />
+    <CustomAction
+        Id="RemoveDriverPackage"
+        FileRef="InstallerActionsDll"
+        DllEntry="RemoveDriverPackage"
+        Execute="deferred"
+        Impersonate="no"
+        Return="check" />
+
+    <CustomAction
+        Id="SetValidatePayloadData"
+        Property="ValidateInstalledPayload"
+        Value="ROOT=[INSTALLFOLDER];MANIFEST=[#ReleaseManifestFile];POLICY=[#TrustPolicyFile]"
+        HideTarget="yes" />
+    <CustomAction
+        Id="SetRollbackDriverData"
+        Property="RollbackDriverPackage"
+        Value="ROOT=[INSTALLFOLDER];INF=[#DriverInf];MANIFEST=[#ReleaseManifestFile];POLICY=[#TrustPolicyFile];STATE=[CommonAppDataFolder]MagicKeyboard\Installer\driver-state.json"
+        HideTarget="yes" />
+    <CustomAction
+        Id="SetStageDriverData"
+        Property="StageDriverPackage"
+        Value="ROOT=[INSTALLFOLDER];INF=[#DriverInf];MANIFEST=[#ReleaseManifestFile];POLICY=[#TrustPolicyFile];STATE=[CommonAppDataFolder]MagicKeyboard\Installer\driver-state.json"
+        HideTarget="yes" />
+    <CustomAction
+        Id="SetCommitDriverData"
+        Property="CommitDriverPackage"
+        Value="ROOT=[INSTALLFOLDER];INF=[#DriverInf];MANIFEST=[#ReleaseManifestFile];POLICY=[#TrustPolicyFile];STATE=[CommonAppDataFolder]MagicKeyboard\Installer\driver-state.json"
+        HideTarget="yes" />
+    <CustomAction
+        Id="SetRollbackRemovalData"
+        Property="RollbackDriverRemoval"
+        Value="ROOT=[INSTALLFOLDER];INF=[#DriverInf];MANIFEST=[#ReleaseManifestFile];POLICY=[#TrustPolicyFile];STATE=[CommonAppDataFolder]MagicKeyboard\Installer\driver-state.json"
+        HideTarget="yes" />
+    <CustomAction
+        Id="SetRemoveDriverData"
+        Property="RemoveDriverPackage"
+        Value="ROOT=[INSTALLFOLDER];INF=[#DriverInf];MANIFEST=[#ReleaseManifestFile];POLICY=[#TrustPolicyFile];STATE=[CommonAppDataFolder]MagicKeyboard\Installer\driver-state.json"
+        HideTarget="yes" />
+
+    <InstallExecuteSequence>
+      <Custom
+          Action="SetValidatePayloadData"
+          After="InstallFiles"
+          Condition="NOT (REMOVE~=&quot;ALL&quot;)" />
+      <Custom
+          Action="ValidateInstalledPayload"
+          After="SetValidatePayloadData"
+          Condition="NOT (REMOVE~=&quot;ALL&quot;)" />
+      <Custom
+          Action="SetRollbackDriverData"
+          After="ValidateInstalledPayload"
+          Condition="NOT (REMOVE~=&quot;ALL&quot;)" />
+      <Custom
+          Action="RollbackDriverPackage"
+          After="SetRollbackDriverData"
+          Condition="NOT (REMOVE~=&quot;ALL&quot;)" />
+      <Custom
+          Action="SetStageDriverData"
+          After="RollbackDriverPackage"
+          Condition="NOT (REMOVE~=&quot;ALL&quot;)" />
+      <Custom
+          Action="StageDriverPackage"
+          After="SetStageDriverData"
+          Condition="NOT (REMOVE~=&quot;ALL&quot;)" />
+      <Custom
+          Action="SetCommitDriverData"
+          After="StageDriverPackage"
+          Condition="NOT (REMOVE~=&quot;ALL&quot;)" />
+      <Custom
+          Action="CommitDriverPackage"
+          After="SetCommitDriverData"
+          Condition="NOT (REMOVE~=&quot;ALL&quot;)" />
+      <Custom
+          Action="SetRollbackRemovalData"
+          After="StopServices"
+          Condition="(REMOVE~=&quot;ALL&quot;) AND NOT UPGRADINGPRODUCTCODE" />
+      <Custom
+          Action="RollbackDriverRemoval"
+          After="SetRollbackRemovalData"
+          Condition="(REMOVE~=&quot;ALL&quot;) AND NOT UPGRADINGPRODUCTCODE" />
+      <Custom
+          Action="SetRemoveDriverData"
+          After="RollbackDriverRemoval"
+          Condition="(REMOVE~=&quot;ALL&quot;) AND NOT UPGRADINGPRODUCTCODE" />
+      <Custom
+          Action="RemoveDriverPackage"
+          After="SetRemoveDriverData"
+          Condition="(REMOVE~=&quot;ALL&quot;) AND NOT UPGRADINGPRODUCTCODE" />
+    </InstallExecuteSequence>
+  </Package>
+</Wix>

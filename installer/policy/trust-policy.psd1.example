@@ -1,0 +1,21 @@
+@{
+    # This file is deliberately unconfigured. Copy it outside the source tree,
+    # pin reviewed release certificates, set Status to Configured, and protect
+    # changes through the release approval process.
+    SchemaVersion = 1
+    Status = 'Unconfigured'
+
+    ProductId = 'MagicKeyboard.Utility'
+    UpgradeCode = '{50CB8A9D-BB93-4C83-8FB1-D825C6883C1C}'
+    Architecture = 'x64'
+    MinimumWindowsBuild = 22621
+
+    # Values are SHA-256 over certificate RawData, not the customary SHA-1
+    # certificate thumbprint and never a publisher-name-only allowlist.
+    AllowedReleaseSignerCertificateSha256 = @()
+    AllowedPayloadSignerCertificateSha256 = @()
+    AllowedDriverSignerCertificateSha256 = @()
+
+    RequireTimestamp = $true
+    MinimumReleaseSequence = 1
+}

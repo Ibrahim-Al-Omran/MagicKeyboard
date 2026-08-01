@@ -1,0 +1,36 @@
+# Rust
+/target/
+**/target/
+
+# Node / frontend
+**/node_modules/
+ui/dist/
+ui/src-tauri/gen/
+
+# Driver build outputs
+driver/out/
+driver/x64/
+driver/**/Debug/
+driver/**/Release/
+*.sys
+*.pdb
+*.cer
+*.cat
+
+# Local binaries / captures / releases
+MagicKeyboard.exe
+releases/
+*.jsonl
+driver/out/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.user
+*.suo
+
+# Temp / installer build
+*.log
+*.tmp

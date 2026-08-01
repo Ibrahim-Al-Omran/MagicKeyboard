@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-test-volume-up"
+description = "Enables the test_volume_up command without any pre-configured scope."
+commands.allow = ["test_volume_up"]
+
+[[permission]]
+identifier = "deny-test-volume-up"
+description = "Denies the test_volume_up command without any pre-configured scope."
+commands.deny = ["test_volume_up"]

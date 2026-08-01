@@ -1,0 +1,32 @@
+<Project Sdk="WixToolset.Sdk/4.0.6">
+  <PropertyGroup>
+    <OutputName>MagicKeyboard.Utility.Bundle</OutputName>
+    <OutputType>Bundle</OutputType>
+    <Platform>x64</Platform>
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <StagedPayload>$([System.IO.Path]::GetFullPath('$(IntermediateOutputPath)staged'))</StagedPayload>
+    <GeneratedReleaseInclude>$([System.IO.Path]::GetFullPath('$(IntermediateOutputPath)GeneratedRelease.wxi'))</GeneratedReleaseInclude>
+    <DefineConstants>ProductMsi=$(SignedMsiPath);GeneratedReleaseInclude=$(GeneratedReleaseInclude);$(DefineConstants)</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Bundle.wxs" />
+    <PackageReference Include="WixToolset.Bal.wixext" Version="4.0.6" />
+  </ItemGroup>
+
+  <Target
+      Name="FailClosedBundlePreflight"
+      BeforeTargets="CoreCompile"
+      Condition="'$(DesignTimeBuild)' != 'true'">
+    <Error Condition="'$(PayloadRoot)' == ''" Text="PayloadRoot is required." />
+    <Error Condition="'$(ReleaseManifest)' == ''" Text="ReleaseManifest is required." />
+    <Error Condition="'$(TrustPolicy)' == ''" Text="TrustPolicy is required." />
+    <Error
+        Condition="'$(SignedMsiPath)' == ''"
+        Text="SignedMsiPath is required; an unsigned Product project output cannot be bundled." />
+    <Exec
+        Command="&quot;$(SystemRoot)\System32\WindowsPowerShell\v1.0\powershell.exe&quot; -NoProfile -NonInteractive -File &quot;$(MSBuildProjectDirectory)\..\scripts\Prepare-WixPayload.ps1&quot; -PayloadRoot &quot;$(PayloadRoot)&quot; -ManifestPath &quot;$(ReleaseManifest)&quot; -TrustPolicyPath &quot;$(TrustPolicy)&quot; -OutputRoot &quot;$(StagedPayload)&quot; -GeneratedIncludePath &quot;$(GeneratedReleaseInclude)&quot;" />
+    <Exec
+        Command="&quot;$(SystemRoot)\System32\WindowsPowerShell\v1.0\powershell.exe&quot; -NoProfile -NonInteractive -File &quot;$(MSBuildProjectDirectory)\..\scripts\Test-SignedMsiForRelease.ps1&quot; -MsiPath &quot;$(SignedMsiPath)&quot; -ManifestPath &quot;$(ReleaseManifest)&quot; -TrustPolicyPath &quot;$(TrustPolicy)&quot;" />
+  </Target>
+</Project>

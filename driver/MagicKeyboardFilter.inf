@@ -1,0 +1,104 @@
+; MagicKeyboardFilter.inf
+;
+; HIDCLASS lower filter for Apple Magic Keyboard A1644.
+; Hardware IDs and lower-filter attachment pattern adapted from WinAppleKey
+; (MIT License), Copyright (c) 2021 George Samartzidis.
+; https://github.com/samartzidis/WinAppleKey
+;
+; WARNING: Requires test signing (or a proper EV/attestation signature).
+; Install only on machines you can recover without this keyboard.
+
+[Version]
+Signature="$WINDOWS NT$"
+Class=HIDClass
+ClassGuid={745a17a0-74d3-11d0-b6fe-00a0c90f57da}
+Provider=%Provider%
+CatalogFile=MagicKeyboardFilter.cat
+DriverPackageDisplayName="Magic Keyboard Filter"
+DriverPackageType=PlugAndPlay
+DriverVer=07/31/2026,0.2.0.0
+PnpLockdown=1
+
+[ControlFlags]
+ExcludeFromSelect=*
+
+[DestinationDirs]
+DefaultDestDir=12
+MKFilter.CopyList=12
+
+[SourceDisksNames]
+1=%DiskName%,,,
+
+[SourceDisksFiles]
+MagicKeyboardFilter.sys=1
+
+[Manufacturer]
+%Manufacturer%=AppleModels,NTamd64
+
+[AppleModels.NTamd64]
+; Magic Keyboard A1644 — USB composite keyboard interface
+%DeviceDesc%=MKFilter.Usb,USB\VID_05AC&PID_0267&MI_01
+; Magic Keyboard A1644 — Bluetooth HID (Apple BT VID 004C)
+%DeviceDesc%=MKFilter.Bth,BTHENUM\{00001124-0000-1000-8000-00805f9b34fb}_VID&0001004c_PID&0267
+
+;---------------------------------------------------------------------
+
+[MKFilter.Usb.NT]
+Include=Input.inf
+Needs=HID_Inst.NT
+CopyFiles=MKFilter.CopyList
+
+[MKFilter.Usb.NT.HW]
+AddReg=MKFilter.LowerFilter.AddReg
+
+[MKFilter.Usb.NT.Services]
+Include=Input.inf
+Needs=HID_Inst.NT.Services
+AddService=MagicKeyboardFilter,,MKFilter.Service
+
+;---------------------------------------------------------------------
+
+[MKFilter.Bth.NT]
+Include=hidbth.inf
+Needs=HIDBTH_Inst.NT
+CopyFiles=MKFilter.CopyList
+
+[MKFilter.Bth.NT.HW]
+Include=keyboard.inf
+Needs=HID_Keyboard_Inst.NT.HW
+AddReg=MKFilter.LowerFilter.AddReg
+
+[MKFilter.Bth.NT.Services]
+Include=hidbth.inf
+Needs=HIDBTH_Inst.NT.Services
+AddService=MagicKeyboardFilter,,MKFilter.Service
+
+;---------------------------------------------------------------------
+
+[MKFilter.CopyList]
+MagicKeyboardFilter.sys
+
+[MKFilter.LowerFilter.AddReg]
+HKR,,"LowerFilters",0x00010000,"MagicKeyboardFilter"
+
+[MKFilter.Service]
+DisplayName=%ServiceDisplayName%
+Description=%ServiceDescription%
+ServiceType=1
+StartType=3
+ErrorControl=1
+ServiceBinary=%12%\MagicKeyboardFilter.sys
+AddReg=MKFilter.Service.AddReg
+
+[MKFilter.Service.AddReg]
+; Match WinAppleKey defaults: swap Fn/Ctrl on, Alt/Cmd swap off.
+HKR,,SwapAltCmd,0x00010001,0
+HKR,,SwapFnCtrl,0x00010001,1
+
+[Strings]
+Provider="MagicKeyboard project"
+Manufacturer="Apple Inc."
+DiskName="Magic Keyboard filter installation media"
+DeviceDesc="Magic Keyboard A1644 (MagicKeyboardFilter)"
+ServiceDisplayName="Magic Keyboard A1644 HID lower filter"
+ServiceDescription="Rewrites A1644 Eject/Fn HID payloads before Windows drops them"

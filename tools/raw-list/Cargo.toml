@@ -1,0 +1,13 @@
+[package]
+name = "raw-list"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[dependencies]
+windows = { version = "0.61", features = [
+  "Win32_Foundation",
+  "Win32_UI_Input",
+] }

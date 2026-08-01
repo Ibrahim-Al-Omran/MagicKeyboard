@@ -1,0 +1,33 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:bal="http://wixtoolset.org/schemas/v4/wxs/bal">
+  <?include $(var.GeneratedReleaseInclude)?>
+
+  <!--
+    Offline-only bootstrapper. It has no update URL or downloader. The final
+    EXE must be Authenticode-signed, exact-hashed by a separately signed update
+    manifest, and pass Test-UpdatePackage.ps1 before launch.
+  -->
+  <Bundle
+      Name="Magic Keyboard Utility"
+      Manufacturer="MagicKeyboard project"
+      Version="$(var.ReleaseVersion)"
+      UpgradeCode="{E9E5E4C0-8DFA-445F-86B5-1BEFC35F5A14}"
+      Compressed="yes">
+    <BootstrapperApplication>
+      <bal:WixStandardBootstrapperApplication
+          Theme="hyperlinkLicense"
+          LicenseUrl=""
+          SuppressOptionsUI="yes" />
+    </BootstrapperApplication>
+
+    <Chain>
+      <MsiPackage
+          SourceFile="$(var.ProductMsi)"
+          Vital="yes"
+          Visible="no"
+          Compressed="yes"
+          ForcePerMachine="yes"
+          EnableFeatureSelection="no" />
+    </Chain>
+  </Bundle>
+</Wix>

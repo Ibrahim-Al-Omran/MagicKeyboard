@@ -1,0 +1,96 @@
+@{
+    # Deliberately invalid release example. It has no approved hardware IDs,
+    # review evidence, hashes, or signature. Never sign or ship it as-is.
+    SchemaVersion = 1
+
+    Product = @{
+        Id = 'MagicKeyboard.Utility'
+        Version = '0.1.0'
+        UpgradeCode = '{50CB8A9D-BB93-4C83-8FB1-D825C6883C1C}'
+        Architecture = 'x64'
+        MinimumWindowsBuild = 22621
+        ReleaseSequence = 0
+    }
+
+    Components = @{
+        Service = @{
+            Version = '0.1.0'
+            UiProtocolMinimumMajor = 1
+            UiProtocolMaximumMajor = 1
+            DriverAbiMinimumMajor = 1
+            DriverAbiMaximumMajor = 1
+        }
+        Ui = @{
+            Version = '0.1.0'
+            ProtocolMajor = 1
+        }
+        Driver = @{
+            Version = '0.1.0.0'
+            AbiMajor = 1
+            InfPath = 'Driver/MagicKeyboardFilter.inf'
+            CatalogPath = 'Driver/MagicKeyboardFilter.cat'
+            SysPath = 'Driver/MagicKeyboardFilter.sys'
+            HardwareIds = @()
+            BindingApproval = @{
+                Status = 'Unapproved'
+                EvidencePath = 'Evidence/device-binding-review.json'
+                EvidenceSha256 = 'REQUIRED_EXACT_SHA256'
+            }
+        }
+        InstallerActions = @{
+            Version = '0.1.0'
+        }
+    }
+
+    Files = @(
+        @{
+            Path = 'Service/MagicKeyboard.Service.exe'
+            Role = 'service'
+            Sha256 = 'REQUIRED_EXACT_SHA256'
+            Version = '0.1.0'
+            Signature = 'Authenticode'
+        }
+        @{
+            Path = 'UI/MagicKeyboard.Settings.exe'
+            Role = 'ui'
+            Sha256 = 'REQUIRED_EXACT_SHA256'
+            Version = '0.1.0'
+            Signature = 'Authenticode'
+        }
+        @{
+            Path = 'Driver/MagicKeyboardFilter.inf'
+            Role = 'driver-inf'
+            Sha256 = 'REQUIRED_EXACT_SHA256'
+            Version = '0.1.0.0'
+            Signature = 'CatalogMember'
+        }
+        @{
+            Path = 'Driver/MagicKeyboardFilter.cat'
+            Role = 'driver-cat'
+            Sha256 = 'REQUIRED_EXACT_SHA256'
+            Version = ''
+            Signature = 'DriverCatalog'
+        }
+        @{
+            Path = 'Driver/MagicKeyboardFilter.sys'
+            Role = 'driver-sys'
+            Sha256 = 'REQUIRED_EXACT_SHA256'
+            Version = '0.1.0.0'
+            Signature = 'AuthenticodeAndCatalogMember'
+        }
+        @{
+            Path = 'Installer/InstallerActions.dll'
+            Role = 'installer-actions'
+            Sha256 = 'REQUIRED_EXACT_SHA256'
+            Version = '0.1.0'
+            Signature = 'Authenticode'
+        }
+        @{
+            Path = 'Evidence/device-binding-review.json'
+            Role = 'binding-evidence'
+            Sha256 = 'REQUIRED_EXACT_SHA256'
+            Version = ''
+            Signature = 'ManifestHash'
+        }
+    )
+}

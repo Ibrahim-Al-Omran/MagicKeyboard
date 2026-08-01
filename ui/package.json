@@ -1,0 +1,26 @@
+{
+  "name": "magic-keyboard-ui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "build:tauri": "tauri build",
+    "package:installer": "tauri build && powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/copy-installer.ps1",
+    "build:tauri:frontend": "tsc --noEmit && vite build --mode tauri",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.11.1"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.11.4",
+    "happy-dom": "^20.11.1",
+    "typescript": "^5.8.3",
+    "vite": "^7.0.0",
+    "vitest": "^3.2.4"
+  }
+}

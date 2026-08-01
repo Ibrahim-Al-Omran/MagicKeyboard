@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-set-fn-lock"
+description = "Enables the set_fn_lock command without any pre-configured scope."
+commands.allow = ["set_fn_lock"]
+
+[[permission]]
+identifier = "deny-set-fn-lock"
+description = "Denies the set_fn_lock command without any pre-configured scope."
+commands.deny = ["set_fn_lock"]

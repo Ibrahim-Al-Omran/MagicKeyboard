@@ -1,0 +1,18 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "settings-window",
+  "description": "Only the typed settings commands exposed to the transient local window.",
+  "windows": ["main"],
+  "permissions": [
+    "allow-get-snapshot",
+    "allow-refresh-devices",
+    "allow-select-device",
+    "allow-set-fn-lock",
+    "allow-set-launch-at-startup",
+    "allow-set-active-profile",
+    "allow-save-profile",
+    "allow-get-diagnostics",
+    "allow-test-volume-up",
+    "allow-test-delete"
+  ]
+}

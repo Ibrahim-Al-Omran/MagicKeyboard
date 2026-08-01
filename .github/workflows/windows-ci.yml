@@ -1,0 +1,68 @@
+name: Windows CI
+
+on:
+  pull_request:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rust-msrv:
+    name: Rust 1.75 compatibility
+    runs-on: windows-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust 1.75
+        uses: dtolnay/rust-toolchain@1.75.0
+
+      - name: Test Rust 1.75 components
+        shell: powershell
+        run: |
+          cargo test --workspace --all-targets
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cargo test --manifest-path tools/hid-probe/Cargo.toml --all-targets
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+  test:
+    name: Repository tests
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install stable Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+
+      - name: Configure MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Verify native build tools
+        shell: powershell
+        run: |
+          cmake --version
+          if (-not (Get-Command cl.exe -ErrorAction SilentlyContinue)) {
+            throw 'MSVC compiler was not configured.'
+          }
+
+      # This runs host-only structural and mapping tests. It never installs,
+      # stages, signs, or loads the prototype keyboard filter driver.
+      - name: Run strict repository tests
+        shell: powershell
+        run: .\scripts\test.ps1 -Strict
