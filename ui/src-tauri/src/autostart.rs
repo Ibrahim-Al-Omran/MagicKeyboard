@@ -5,19 +5,26 @@ use std::path::PathBuf;
 const RUN_SUBKEY: &str = r"Software\Microsoft\Windows\CurrentVersion\Run";
 /// Must match the NSIS installer hook and Tauri uninstall cleanup name.
 pub const RUN_VALUE_NAME: &str = "Magic Keyboard";
+/// Passed by the sign-in launch so the app starts in the tray without a window.
+/// Must match the NSIS installer hook.
+pub const BACKGROUND_ARG: &str = "--background";
 
-pub fn is_enabled() -> bool {
-    let Ok(key) = open_run_key(false) else {
-        return false;
-    };
-    key.get_value::<String, _>(RUN_VALUE_NAME).is_ok()
+pub fn launched_in_background() -> bool {
+    std::env::args().any(|arg| arg == BACKGROUND_ARG)
+}
+
+fn registered_command() -> Option<String> {
+    open_run_key(false)
+        .ok()?
+        .get_value::<String, _>(RUN_VALUE_NAME)
+        .ok()
 }
 
 pub fn set_enabled(enabled: bool) -> Result<(), String> {
     if enabled {
-        let path = current_exe_quoted()?;
+        let command = startup_command()?;
         let key = open_run_key(true)?;
-        key.set_value(RUN_VALUE_NAME, &path)
+        key.set_value(RUN_VALUE_NAME, &command)
             .map_err(|error| format!("Could not enable startup launch: {error}"))?;
     } else {
         let key = open_run_key(true)?;
@@ -28,16 +35,20 @@ pub fn set_enabled(enabled: bool) -> Result<(), String> {
 }
 
 pub fn sync(enabled: bool) -> Result<(), String> {
-    if is_enabled() == enabled {
+    let up_to_date = match registered_command() {
+        Some(current) => enabled && Some(current) == startup_command().ok(),
+        None => !enabled,
+    };
+    if up_to_date {
         return Ok(());
     }
     set_enabled(enabled)
 }
 
-fn current_exe_quoted() -> Result<String, String> {
+fn startup_command() -> Result<String, String> {
     let path = std::env::current_exe().map_err(|error| error.to_string())?;
     let path = canonicalize_for_registry(path)?;
-    Ok(format!("\"{}\"", path.display()))
+    Ok(format!("\"{}\" {BACKGROUND_ARG}", path.display()))
 }
 
 fn canonicalize_for_registry(path: PathBuf) -> Result<PathBuf, String> {
