@@ -5,7 +5,7 @@
 
 use std::collections::{HashMap, VecDeque};
 use std::os::windows::process::CommandExt;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU16, AtomicU64, Ordering};
 use std::sync::mpsc::{self, Sender};
 use std::sync::{Mutex, OnceLock};
 use std::thread;
@@ -19,7 +19,7 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
     MapVirtualKeyW, SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBD_EVENT_FLAGS, KEYBDINPUT,
     KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP, KEYEVENTF_SCANCODE, MAPVK_VK_TO_VSC, VIRTUAL_KEY,
     VK_CONTROL, VK_F1, VK_F12, VK_H, VK_LWIN, VK_MEDIA_NEXT_TRACK, VK_MEDIA_PLAY_PAUSE,
-    VK_MEDIA_PREV_TRACK, VK_MENU, VK_RCONTROL, VK_S, VK_SHIFT, VK_TAB, VK_VOLUME_DOWN,
+    VK_MEDIA_PREV_TRACK, VK_MENU, VK_PAUSE, VK_RCONTROL, VK_S, VK_SHIFT, VK_TAB, VK_VOLUME_DOWN,
     VK_VOLUME_MUTE, VK_VOLUME_UP,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
@@ -43,6 +43,11 @@ static KEYS_SEEN: AtomicU64 = AtomicU64::new(0);
 static FN_HELD: AtomicBool = AtomicBool::new(false);
 /// Windows cannot see Apple Fn without a driver. Right Ctrl acts as momentary Fn.
 static SOFTWARE_FN_HELD: AtomicBool = AtomicBool::new(false);
+/// MagicKeyboardFilter reports Pause while the physical Fn key is held.
+static DRIVER_FN_HELD: AtomicBool = AtomicBool::new(false);
+/// F-keys whose key-down was passed through, so their key-up is passed too
+/// even if Fn was released first. Bit n = F(n+1).
+static PASSED_F_KEYS: AtomicU16 = AtomicU16::new(0);
 static DIAGNOSTICS: OnceLock<Mutex<Diagnostics>> = OnceLock::new();
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -218,8 +223,24 @@ fn set_software_fn_held(held: bool) {
     }
 }
 
+fn set_driver_fn_held(held: bool) {
+    let previous = DRIVER_FN_HELD.swap(held, Ordering::SeqCst);
+    if previous != held {
+        note_status(
+            if held {
+                "Fn held (driver) — F-row sends standard F-keys".into()
+            } else {
+                "Fn released (driver) — F-row sends specials".into()
+            },
+            None,
+        );
+    }
+}
+
 pub fn fn_active() -> bool {
-    FN_HELD.load(Ordering::SeqCst) || SOFTWARE_FN_HELD.load(Ordering::SeqCst)
+    FN_HELD.load(Ordering::SeqCst)
+        || SOFTWARE_FN_HELD.load(Ordering::SeqCst)
+        || DRIVER_FN_HELD.load(Ordering::SeqCst)
 }
 
 pub fn prefer_function_specials(fn_lock: bool) -> bool {
@@ -396,6 +417,10 @@ unsafe extern "system" fn keyboard_proc(code: i32, wparam: WPARAM, lparam: LPARA
             if vk == VK_RCONTROL.0 {
                 set_software_fn_held(is_down);
             }
+            if vk == VK_PAUSE.0 {
+                set_driver_fn_held(is_down);
+                return LRESULT(1);
+            }
             if is_down {
                 note_key(vk);
             }
@@ -431,6 +456,10 @@ fn should_consume(vk: u16, is_down: bool) -> bool {
     drop(state);
 
     if is_function_row || is_consumer_alias {
+        let f_bit = 1u16 << (lookup_vk - VK_F1.0);
+        if !is_down && PASSED_F_KEYS.fetch_and(!f_bit, Ordering::SeqCst) & f_bit != 0 {
+            return false;
+        }
         if prefer_function_specials(fn_lock) {
             if is_down {
                 let _ = queue_action(action);
@@ -448,6 +477,9 @@ fn should_consume(vk: u16, is_down: bool) -> bool {
                 });
             }
             return true;
+        }
+        if is_down {
+            PASSED_F_KEYS.fetch_or(f_bit, Ordering::SeqCst);
         }
         return false;
     }

@@ -12,6 +12,11 @@
  *   [1] reserved / Apple vendor byte
  *   [2..7] six HID keycodes
  *   [8] special bits: bit0 = Eject, bit1 = physical Fn
+ *
+ * The keyboard collection's logical maximum is 0x65, so HIDCLASS drops any
+ * usage above that (F13-F24, media keys). While Fn is held the payload carries
+ * MkFilterHidFnSignal so the user-mode remapper can tell Fn+F-key from a bare
+ * F-key and run the printed media action for the latter.
  */
 
 #if defined(_KERNEL_MODE)
@@ -57,19 +62,9 @@ enum MkFilterHidCodes
     MkFilterHidF10 = 0x43,
     MkFilterHidF11 = 0x44,
     MkFilterHidF12 = 0x45,
-    MkFilterHidF13 = 0x68,
-    MkFilterHidF14 = 0x69,
-    MkFilterHidF15 = 0x6a,
-    MkFilterHidF16 = 0x6b,
-    MkFilterHidF17 = 0x6c,
-    MkFilterHidF18 = 0x6d,
-    MkFilterHidF19 = 0x6e,
-    MkFilterHidF20 = 0x6f,
-    MkFilterHidF21 = 0x70,
-    MkFilterHidF22 = 0x71,
-    MkFilterHidF23 = 0x72,
-    MkFilterHidF24 = 0x73,
-    MkFilterHidKeyB = 0x05,
+    MkFilterHidBackspace = 0x2a,
+    MkFilterHidErrorRollOver = 0x01,
+    MkFilterHidFnSignal = MkFilterHidPauseBreak,
     MkFilterHidKeyP = 0x13,
     MkFilterHidKeyS = 0x16,
     MkFilterHidLCtrlMask = 0x01,

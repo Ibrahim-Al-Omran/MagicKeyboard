@@ -28,6 +28,33 @@ MkFilterA1644StateInit(
     state->FakeFnActive = 0;
 }
 
+/* Puts code in the first of the six key slots so it is reported before the others. */
+static void
+MkFilterInsertKey(
+    MK_U8 *keys,
+    MK_U8 code
+    )
+{
+    int index;
+
+    if (keys[0] == (MK_U8)MkFilterHidErrorRollOver)
+    {
+        return;
+    }
+    for (index = 0; index < 6; ++index)
+    {
+        if (keys[index] == code)
+        {
+            return;
+        }
+    }
+    for (index = 5; index > 0; --index)
+    {
+        keys[index] = keys[index - 1];
+    }
+    keys[0] = code;
+}
+
 void
 MkFilterProcessA1644Payload(
     MK_U8 *buf,
@@ -124,6 +151,22 @@ MkFilterProcessA1644Payload(
     {
         switch (*key1)
         {
+        case MkFilterHidF1:
+        case MkFilterHidF2:
+        case MkFilterHidF3:
+        case MkFilterHidF4:
+        case MkFilterHidF5:
+        case MkFilterHidF6:
+        case MkFilterHidF7:
+        case MkFilterHidF8:
+        case MkFilterHidF9:
+        case MkFilterHidF10:
+        case MkFilterHidF11:
+        case MkFilterHidF12:
+            break;
+        case MkFilterHidBackspace:
+            *key1 = (MK_U8)MkFilterHidDel;
+            break;
         case MkFilterHidLeft:
             *key1 = (MK_U8)MkFilterHidHome;
             break;
@@ -139,52 +182,17 @@ MkFilterProcessA1644Payload(
         case MkFilterHidEnter:
             *key1 = (MK_U8)MkFilterHidInsert;
             break;
-        case MkFilterHidF1:
-            *key1 = (MK_U8)MkFilterHidF13;
-            break;
-        case MkFilterHidF2:
-            *key1 = (MK_U8)MkFilterHidF14;
-            break;
-        case MkFilterHidF3:
-            *key1 = (MK_U8)MkFilterHidF15;
-            break;
-        case MkFilterHidF4:
-            *key1 = (MK_U8)MkFilterHidF16;
-            break;
-        case MkFilterHidF5:
-            *key1 = (MK_U8)MkFilterHidF17;
-            break;
-        case MkFilterHidF6:
-            *key1 = (MK_U8)MkFilterHidF18;
-            break;
-        case MkFilterHidF7:
-            *key1 = (MK_U8)MkFilterHidF19;
-            break;
-        case MkFilterHidF8:
-            *key1 = (MK_U8)MkFilterHidF20;
-            break;
-        case MkFilterHidF9:
-            *key1 = (MK_U8)MkFilterHidF21;
-            break;
-        case MkFilterHidF10:
-            *key1 = (MK_U8)MkFilterHidF22;
-            break;
-        case MkFilterHidF11:
-            *key1 = (MK_U8)MkFilterHidF23;
-            break;
-        case MkFilterHidF12:
-            *key1 = (MK_U8)MkFilterHidF24;
-            break;
         case MkFilterHidKeyP:
             *key1 = (MK_U8)MkFilterHidPrtScr;
-            break;
-        case MkFilterHidKeyB:
-            *key1 = (MK_U8)MkFilterHidPauseBreak;
             break;
         case MkFilterHidKeyS:
             *key1 = (MK_U8)MkFilterHidScrLck;
             break;
         default:
+            if (!swapFnCtrl)
+            {
+                break;
+            }
             if ((*modifier & (MK_U8)MkFilterHidLCtrlMask) != 0)
             {
                 *modifier = (MK_U8)(
@@ -202,6 +210,11 @@ MkFilterProcessA1644Payload(
             }
             break;
         }
+    }
+
+    if (state->FakeFnActive != 0)
+    {
+        MkFilterInsertKey(key1, (MK_U8)MkFilterHidFnSignal);
     }
 }
 

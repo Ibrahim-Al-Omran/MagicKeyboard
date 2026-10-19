@@ -373,6 +373,39 @@ TestA1644PayloadEjectAndFnSwap(void)
     CHECK(payload[8] == 0x00);
 }
 
+static void
+TestA1644FnLayerWithoutSwap(void)
+{
+    MKFILTER_A1644_STATE state;
+    uint8_t bareF1[9] = { 0x00, 0x00, MkFilterHidF1, 0, 0, 0, 0, 0, 0x00 };
+    uint8_t fnF1[9] = { 0x00, 0x00, MkFilterHidF1, 0, 0, 0, 0, 0, 0x02 };
+    uint8_t fnBackspace[9] = { 0x00, 0x00, MkFilterHidBackspace, 0, 0, 0, 0, 0, 0x02 };
+    uint8_t fnAlone[9] = { 0x00, 0x00, 0, 0, 0, 0, 0, 0, 0x02 };
+    uint8_t fnShiftA[9] = { 0x02, 0x00, 0x04, 0, 0, 0, 0, 0, 0x02 };
+
+    MkFilterA1644StateInit(&state, 0, 0);
+    MkFilterProcessA1644Payload(bareF1, sizeof(bareF1), &state);
+    CHECK(bareF1[2] == (uint8_t)MkFilterHidF1);
+    CHECK(bareF1[3] == 0);
+
+    MkFilterProcessA1644Payload(fnF1, sizeof(fnF1), &state);
+    CHECK(fnF1[2] == (uint8_t)MkFilterHidFnSignal);
+    CHECK(fnF1[3] == (uint8_t)MkFilterHidF1);
+    CHECK(fnF1[8] == 0x00);
+
+    MkFilterProcessA1644Payload(fnBackspace, sizeof(fnBackspace), &state);
+    CHECK(fnBackspace[2] == (uint8_t)MkFilterHidFnSignal);
+    CHECK(fnBackspace[3] == (uint8_t)MkFilterHidDel);
+
+    MkFilterProcessA1644Payload(fnAlone, sizeof(fnAlone), &state);
+    CHECK(fnAlone[2] == (uint8_t)MkFilterHidFnSignal);
+
+    MkFilterProcessA1644Payload(fnShiftA, sizeof(fnShiftA), &state);
+    CHECK(fnShiftA[0] == 0x02);
+    CHECK(fnShiftA[2] == (uint8_t)MkFilterHidFnSignal);
+    CHECK(fnShiftA[3] == 0x04);
+}
+
 int
 main(void)
 {
@@ -386,6 +419,7 @@ main(void)
     TestHidEjectRewritesToDelete();
     TestHidEjectIgnoredWithoutBit();
     TestA1644PayloadEjectAndFnSwap();
+    TestA1644FnLayerWithoutSwap();
 
     if (failures != 0)
     {

@@ -91,9 +91,9 @@ ServiceBinary=%12%\MagicKeyboardFilter.sys
 AddReg=MKFilter.Service.AddReg
 
 [MKFilter.Service.AddReg]
-; Match WinAppleKey defaults: swap Fn/Ctrl on, Alt/Cmd swap off.
+; Mac layout: Fn stays Fn (F-row specials via the app), Alt/Cmd unswapped.
 HKR,,SwapAltCmd,0x00010001,0
-HKR,,SwapFnCtrl,0x00010001,1
+HKR,,SwapFnCtrl,0x00010001,0
 
 [Strings]
 Provider="MagicKeyboard project"
