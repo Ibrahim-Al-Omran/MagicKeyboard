@@ -18,7 +18,7 @@
 #endif
 
 static ULONG g_SwapAltCmd = 0;
-static ULONG g_SwapFnCtrl = 1;
+static ULONG g_SwapFnCtrl = 0;
 
 NTSTATUS
 DriverEntry(
@@ -331,6 +331,33 @@ MkFilterDispatchAny(
     return status;
 }
 
+/*
+ * Transfers may describe their data with either a flat pointer or an MDL.
+ * Runs at <= DISPATCH_LEVEL, so only the non-blocking MDL mapping is allowed.
+ */
+static PUCHAR
+MkFilterTransferBuffer(
+    PVOID buffer,
+    PMDL mdl,
+    ULONG size
+    )
+{
+    if (buffer != NULL)
+    {
+        return (PUCHAR)buffer;
+    }
+
+    if (mdl != NULL && MmGetMdlByteCount(mdl) >= size)
+    {
+        return (PUCHAR)MmGetSystemAddressForMdlSafe(
+            mdl,
+            NormalPagePriority | MdlMappingNoExecute
+            );
+    }
+
+    return NULL;
+}
+
 static NTSTATUS
 MkFilterInternalIoctlComplete(
     PDEVICE_OBJECT fido,
@@ -352,11 +379,18 @@ MkFilterInternalIoctlComplete(
         if (control == IOCTL_INTERNAL_BTH_SUBMIT_BRB)
         {
             PBRB brb = (PBRB)stack->Parameters.Others.Argument1;
-            if (brb != NULL && brb->BrbHeader.Type == BRB_L2CA_ACL_TRANSFER)
+            if (brb != NULL &&
+                brb->BrbHeader.Type == BRB_L2CA_ACL_TRANSFER &&
+                (brb->BrbL2caAclTransfer.TransferFlags & ACL_TRANSFER_DIRECTION_IN) != 0)
             {
-                PUCHAR buf = (PUCHAR)brb->BrbL2caAclTransfer.Buffer;
                 ULONG size = brb->BrbL2caAclTransfer.BufferSize;
-                if (buf != NULL && size == 11)
+                PUCHAR buf = MkFilterTransferBuffer(
+                    brb->BrbL2caAclTransfer.Buffer,
+                    brb->BrbL2caAclTransfer.BufferMDL,
+                    size
+                    );
+                /* HIDP input DATA header (0xA1), report ID 1, 9-byte keyboard payload. */
+                if (buf != NULL && size == 11 && buf[0] == 0xA1 && buf[1] == 0x01)
                 {
                     MkFilterProcessA1644Payload(buf + 2, 9, &extension->A1644);
                 }
@@ -366,11 +400,16 @@ MkFilterInternalIoctlComplete(
         {
             PURB urb = (PURB)stack->Parameters.Others.Argument1;
             if (urb != NULL &&
-                urb->UrbHeader.Function == URB_FUNCTION_BULK_OR_INTERRUPT_TRANSFER)
+                urb->UrbHeader.Function == URB_FUNCTION_BULK_OR_INTERRUPT_TRANSFER &&
+                (urb->UrbBulkOrInterruptTransfer.TransferFlags & USBD_TRANSFER_DIRECTION_IN) != 0)
             {
-                PUCHAR buf = (PUCHAR)urb->UrbBulkOrInterruptTransfer.TransferBuffer;
                 ULONG size = urb->UrbBulkOrInterruptTransfer.TransferBufferLength;
-                if (buf != NULL && size == 10)
+                PUCHAR buf = MkFilterTransferBuffer(
+                    urb->UrbBulkOrInterruptTransfer.TransferBuffer,
+                    urb->UrbBulkOrInterruptTransfer.TransferBufferMDL,
+                    size
+                    );
+                if (buf != NULL && size == 10 && buf[0] == 0x01)
                 {
                     MkFilterProcessA1644Payload(buf + 1, 9, &extension->A1644);
                 }
@@ -383,7 +422,8 @@ MkFilterInternalIoctlComplete(
         IoMarkIrpPending(irp);
     }
 
-    return irp->IoStatus.Status;
+    IoReleaseRemoveLock(&extension->RemoveLock, irp);
+    return STATUS_CONTINUE_COMPLETION;
 }
 
 NTSTATUS
@@ -395,6 +435,7 @@ MkFilterDispatchInternalIoctl(
     PMKFILTER_DEVICE_EXTENSION extension;
     PIO_STACK_LOCATION stack;
     ULONG control;
+    BOOLEAN hookCompletion = FALSE;
     NTSTATUS status;
 
     extension = (PMKFILTER_DEVICE_EXTENSION)fido->DeviceExtension;
@@ -410,43 +451,32 @@ MkFilterDispatchInternalIoctl(
     if (control == IOCTL_INTERNAL_BTH_SUBMIT_BRB)
     {
         PBRB brb = (PBRB)stack->Parameters.Others.Argument1;
-        if (brb != NULL && brb->BrbHeader.Type == BRB_L2CA_ACL_TRANSFER)
-        {
-            IoCopyCurrentIrpStackLocationToNext(irp);
-            IoSetCompletionRoutine(
-                irp,
-                MkFilterInternalIoctlComplete,
-                fido,
-                TRUE,
-                TRUE,
-                TRUE
-                );
-        }
-        else
-        {
-            IoSkipCurrentIrpStackLocation(irp);
-        }
+        hookCompletion = brb != NULL && brb->BrbHeader.Type == BRB_L2CA_ACL_TRANSFER;
     }
     else if (control == IOCTL_INTERNAL_USB_SUBMIT_URB)
     {
-        IoCopyCurrentIrpStackLocationToNext(irp);
-        IoSetCompletionRoutine(
-            irp,
-            MkFilterInternalIoctlComplete,
-            fido,
-            TRUE,
-            TRUE,
-            TRUE
-            );
-    }
-    else
-    {
-        IoSkipCurrentIrpStackLocation(irp);
+        hookCompletion = TRUE;
     }
 
-    status = IoCallDriver(extension->LowerDeviceObject, irp);
-    IoReleaseRemoveLock(&extension->RemoveLock, irp);
-    return status;
+    if (!hookCompletion)
+    {
+        IoSkipCurrentIrpStackLocation(irp);
+        status = IoCallDriver(extension->LowerDeviceObject, irp);
+        IoReleaseRemoveLock(&extension->RemoveLock, irp);
+        return status;
+    }
+
+    /* The completion routine releases the remove lock. */
+    IoCopyCurrentIrpStackLocationToNext(irp);
+    IoSetCompletionRoutine(
+        irp,
+        MkFilterInternalIoctlComplete,
+        fido,
+        TRUE,
+        TRUE,
+        TRUE
+        );
+    return IoCallDriver(extension->LowerDeviceObject, irp);
 }
 
 NTSTATUS

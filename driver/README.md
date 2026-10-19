@@ -20,8 +20,13 @@ Default registry settings (service key):
 
 | Value | Default | Meaning |
 | --- | --- | --- |
-| `SwapFnCtrl` | `1` | Physical Ctrl acts as Fn; Fn acts as Left Ctrl |
+| `SwapFnCtrl` | `0` | `1` = physical Ctrl acts as Fn; Fn acts as Left Ctrl (WinAppleKey style) |
 | `SwapAltCmd` | `0` | Leave Alt/Cmd unswapped |
+
+While Fn is held the filter adds a Pause usage to the report. The settings app
+treats Pause as "Fn held", so bare F1-F12 run the printed media actions and
+Fn+F1-F12 pass through as standard F-keys. Fn+arrows give Home/End/PgUp/PgDn
+and Fn+Backspace gives Delete.
 
 ## Host tests (no WDK)
 
@@ -48,6 +53,18 @@ bcdedit /set testsigning on
 
 Keep a second keyboard available. This filter sits under the inbox HID stack; a
 bad build can break this keyboard until the driver is removed.
+
+### Scripted install (elevated PowerShell)
+
+```powershell
+cd driver\scripts
+.\Install-TestFilter.ps1 -EnableTestSigning      # once; reboot afterwards
+.\Install-TestFilter.ps1 -RemoveMagicUtilitiesDriver
+```
+
+The Magic Utilities keyboard driver claims the same `LowerFilters` slot, so it
+must be removed (quit the Magic Utilities app first). Undo everything with
+`.\Uninstall-TestFilter.ps1 -DisableTestSigning`.
 
 ## Deliberate limitations
 
